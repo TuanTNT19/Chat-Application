@@ -35,16 +35,30 @@ static void *Accep_Thread(void *para)
 {
     int client_fd;
     struct sockaddr_in cli_addr;
+    socklen_t len = sizeof(cli_addr);
 
     while(1){
-        socklen_t len = sizeof(cli_addr);
+        
 
         client_fd = accept(this_device.fd, (struct sockaddr *)&cli_addr, &len);
         if (client_fd == -1)
         {
             printf("ERROR: Can not accept new device\n");
+            return ;
         }
 
+    device_connect[total_device].fd = client_fd;
+    device_connect[total_device].id = total_device;
+    device_connect[total_device].addr = cli_addr;
+
+    device_connect[total_device].port_num = ntons(cli_addr.sin_port);
+    device_connect[total_device].addrlen = len ;
+    inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect[total_device].my_ip);
+
+    printf("Accept a new connection from IP addreass: %s, setup at port: %d\n", device_connect[total_device].my_ip, device_connect[total_device].port_num);
+    
+    
+    
     }
 }
 
@@ -151,7 +165,7 @@ int main(int argc, char *argv[]){
 
     while(1)
     {
-        printf("Enter your chosen:  ");
+        printf("Enter your command:  ");
         fgets(command, 70, stdin);
         command[strcspn(command, "\n")] = '\0';
 
