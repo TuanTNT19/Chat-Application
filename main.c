@@ -14,8 +14,9 @@
 
 pthread_t Accep_Thread_id;
 char IP[100];
-char command[20];
+char command[70];
 char command_option[10];
+char temp_str[70];
 
 typedef struct {
     int id;
@@ -23,6 +24,7 @@ typedef struct {
     int port_num;
     struct sockaddr_in addr;
     socklen_t addrlen;
+    char my_ip[50];
 } device;
 
 device this_device ={0};
@@ -43,6 +45,21 @@ static void *Accep_Thread(void *para)
             printf("ERROR: Can not accept new device\n");
         }
 
+    }
+}
+
+void print_myPort()
+{
+    printf("My port is: %d\n", this_device.port_num);
+}
+
+void list_peer()
+{  
+    printf("ID |        IP Address         | Port No.\n");
+    
+    for (int i =0; i< total_device; i++)
+    {
+        printf("%d |    %s          | %d\n", device_connect[i].id, device_connect[i].my_ip, device_connect[i].port_num);
     }
 }
 
@@ -87,7 +104,7 @@ int send_to(int client_id, char *mes)
     {
         if (write(device_connect[i].fd, mes, sizeof(mes)) == -1)
         {
-            printf("ERROR: Can not send message\n");
+            //printf("ERROR: Can not send message\n");
             return 0;
         }
         
@@ -134,15 +151,40 @@ int main(int argc, char *argv[]){
 
     while(1)
     {
-        printf("Enter your chosen ");
-        fgets(command, 20, stdin);
-        process_chosen(command, command_option);
+        printf("Enter your chosen:  ");
+        fgets(command, 70, stdin);
+        command[strcspn(command, "\n")] = '\0';
+
+        strcpy(temp_str, command);
+
+        process_chosen(temp_str, command_option);
 
         if (!strcmp(command_option,"send"))
         {
-            printf("OK\n");
+            printf("ok send\n");
+            char mes[50];
+            int id;
+
+            if (!send_to(id, mes))
+            {
+                printf("ERROR: Can not send messgage to port %d at id %d\n", this_device.port_num, id);
+            }
         }
 
+        else if (!strcmp(command_option, "myip"))
+        {
+            print_myIP(this_device.my_ip);
+        }
+
+        else if (!strcmp(command_option, "myport")){
+            print_myPort();
+
+        }
+
+        else if (!strcmp(command_option,"list"))
+        {
+            printf("Check command list ok\n");
+        }
 
     }
 
