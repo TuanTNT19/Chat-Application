@@ -57,10 +57,52 @@ static void *Accep_Thread(void *para)
 
     printf("Accept a new connection from IP addreass: %s, setup at port: %d\n", device_connect[total_device].my_ip, device_connect[total_device].port_num);
     
-    
-    
+    receive_from(device_connect[total_device]);
+
+    total_device++;
     }
 }
+
+void receive_from(device devicet)
+{
+    char buff_r[50];
+
+    if (read(devicet.fd, buff_r, 50) < 0)
+    {
+        printf("ERROR: Can not read data\n");
+        return ;
+    }
+
+    printf("** Message receive from: %s\n", devicet.my_ip);
+    printf("** Sender Port:          %d\n",devicet.port_num);
+    printf("-> Message:              %s\n", buff_r);
+
+
+}
+
+void connect_to(device *dev)
+{
+    dev->fd = socket(AF_INET, SOCK_STREAM, 0);
+
+    if (dev->fd == -1)
+    {
+        printf("ERROR: Can not connect\n");
+        return;
+    }
+
+    dev->addr.sin_family = AF_INET;
+    dev->addr.sin_port = htons(dev->port_num);
+    inet_pton(AF_INET, dev->my_ip, &dev->addr.sin_addr);
+
+    if (connect(dev->fd, (struct sockaddr*)&dev->addr, sizeof(dev->addr)) < 0)
+    {
+        printf("ERROR: Can not connect to new device\n");
+        return ;
+    }
+
+    
+}
+
 
 void print_myPort()
 {
@@ -198,6 +240,11 @@ int main(int argc, char *argv[]){
         else if (!strcmp(command_option,"list"))
         {
             printf("Check command list ok\n");
+        }
+
+        else if (!strcmp(command_option, "connect"))
+        {
+            
         }
 
     }
