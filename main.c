@@ -12,7 +12,7 @@
 #define MAX_BACKLOG 10
 
 
-pthread_t Accep_Thread_id;
+pthread_t Accep_Thread_id, Recei_Thread_id;
 char IP[100];
 char command[70];
 char command_option[10];
@@ -28,66 +28,40 @@ typedef struct {
 } device;
 
 device this_device ={0};
-device device_connect[MAX_BACKLOG] = {0};
-int total_device;
+device device_connect[MAX_BACKLOG] ;
+int total_device = 0;
 
-static void *Accep_Thread(void *para)
+
+static void* receive_from(void *para)
 {
-    int client_fd;
-    struct sockaddr_in cli_addr;
-    socklen_t len = sizeof(cli_addr);
-
-    while(1){
-        
-
-        client_fd = accept(this_device.fd, (struct sockaddr *)&cli_addr, &len);
-        if (client_fd == -1)
-        {
-            printf("ERROR: Can not accept new device\n");
-            return ;
-        }
-
-    device_connect[total_device].fd = client_fd;
-    device_connect[total_device].id = total_device;
-    device_connect[total_device].addr = cli_addr;
-
-    device_connect[total_device].port_num = ntons(cli_addr.sin_port);
-    device_connect[total_device].addrlen = len ;
-    inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect[total_device].my_ip);
-
-    printf("Accept a new connection from IP addreass: %s, setup at port: %d\n", device_connect[total_device].my_ip, device_connect[total_device].port_num);
-    
-    receive_from(device_connect[total_device]);
-
-    total_device++;
-    }
-}
-
-void receive_from(device devicet)
-{
+    device *devicet = (device *)para;
     char buff_r[50];
 
-    if (read(devicet.fd, buff_r, 50) < 0)
+    while(1)
+    {
+
+    if (read(devicet->fd, buff_r, 50) < 0)
     {
         printf("ERROR: Can not read data\n");
         return ;
     }
 
-    printf("** Message receive from: %s\n", devicet.my_ip);
-    printf("** Sender Port:          %d\n",devicet.port_num);
+    printf("** Message receive from: %s\n", devicet->my_ip);
+    printf("** Sender Port:          %d\n",devicet->port_num);
     printf("-> Message:              %s\n", buff_r);
+    }
 
 
 }
 
-void connect_to(device *dev)
+int connect_to(device *dev)
 {
     dev->fd = socket(AF_INET, SOCK_STREAM, 0);
 
     if (dev->fd == -1)
     {
-        printf("ERROR: Can not connect\n");
-        return;
+        //printf("ERROR: Can not connect( fd < -1)\n");
+        return -1 ;
     }
 
     dev->addr.sin_family = AF_INET;
@@ -96,11 +70,11 @@ void connect_to(device *dev)
 
     if (connect(dev->fd, (struct sockaddr*)&dev->addr, sizeof(dev->addr)) < 0)
     {
-        printf("ERROR: Can not connect to new device\n");
-        return ;
-    }
+        //printf("ERROR: Can not connect to new device\n");
+        return -1 ;
+    }   
 
-    
+    return 0;
 }
 
 
@@ -153,20 +127,51 @@ void *process_chosen(char *str, char *result)
      }
 }
 
-int send_to(int client_id, char *mes)
+int send_to(device dev, char *mes)
 {
-    for (int i = 0; i < total_device; i++)
-    if (client_id == device_connect[i].id)
-    {
-        if (write(device_connect[i].fd, mes, sizeof(mes)) == -1)
-        {
-            //printf("ERROR: Can not send message\n");
-            return 0;
-        }
-        
-    }
+    if (write(dev.fd, mes, sizeof(mes)) < 0)
+{
+    printf("ERROR: Can not send message\n");
+    return 0;
+}
     return 1;
 }
+
+static void *Accep_Thread(void *para)
+{
+    int client_fd;
+    struct sockaddr_in cli_addr;
+    socklen_t len = sizeof(cli_addr);
+
+    while(1){
+        
+
+        client_fd = accept(this_device.fd, (struct sockaddr *)&cli_addr, &len);
+        if (client_fd == -1)
+        {
+            printf("ERROR: Can not accept new device\n");
+            return ;
+        }
+
+    device_connect[total_device].fd = client_fd;
+    device_connect[total_device].id = total_device;
+    device_connect[total_device].addr = cli_addr;
+
+    device_connect[total_device].port_num = ntohs(cli_addr.sin_port);
+    device_connect[total_device].addrlen = len ;
+    inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect[total_device].my_ip, 50);
+
+    printf("\nAccept a new connection from IP addreass: %s, setup at port: %d\n", device_connect[total_device].my_ip, device_connect[total_device].port_num);
+    
+    if (pthread_create(&Recei_Thread_id, NULL, &receive_from, &device_connect[total_device])){
+        printf("ERROR: Can not create to receive message\n");
+    }
+    //receive_from(device_connect[total_device]);
+
+    total_device++;
+    }
+}
+
 
 int main(int argc, char *argv[]){
 
@@ -218,12 +223,22 @@ int main(int argc, char *argv[]){
         if (!strcmp(command_option,"send"))
         {
             printf("ok send\n");
+            char temp[20];
             char mes[50];
             int id;
 
-            if (!send_to(id, mes))
+            sscanf(command, "%s %d %[^\n]", temp, &id, mes);
+            
+            printf("Command: %s\n", temp);
+            printf("ID: %d\n", id);
+            printf("mes: %s\n", mes);
+
+            for (int i=0; i <total_device;i++)
             {
-                printf("ERROR: Can not send messgage to port %d at id %d\n", this_device.port_num, id);
+                if (id == device_connect[i].id)
+                {
+                    send_to(device_connect[i], mes);
+                }
             }
         }
 
@@ -244,8 +259,27 @@ int main(int argc, char *argv[]){
 
         else if (!strcmp(command_option, "connect"))
         {
-            
-        }
+            int port_n;
+            char IP_d[20];
+            char temp[10];
+            sscanf(command, "%s %s %d",temp, IP_d, &port_n);
+            device_connect[total_device].id = total_device;
+            device_connect[total_device].port_num = port_n;
+            strcpy(device_connect[total_device].my_ip, IP_d);
+
+            if (connect_to(&device_connect[total_device]) )
+            {
+                printf("ERROR: Can not connect toi new device\n");
+
+            }
+
+            else{
+                printf("Connnect OK\n");
+                total_device++;
+                printf("Total Device is : %d\n", total_device);
+                printf("ID of this device : %d\n", device_connect[total_device].id);
+            }
+            }
 
     }
 
