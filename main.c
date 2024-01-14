@@ -7,6 +7,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <errno.h>
+#include <signal.h>
 
 //#define clear() printf("\033[H\033[J") 
 #define MAX_BACKLOG 10
@@ -31,6 +32,14 @@ device this_device ={0};
 device device_connect[MAX_BACKLOG] ;
 int total_device = 0;
 
+void sig_handler()
+{
+    printf("***********************************************************\n");
+    printf("-------------------Turn off quickly------------------------\n");
+    printf("************************************************************\n");
+
+    exit(0);
+}
 
 static void* receive_from(void *para)
 {
@@ -54,21 +63,11 @@ static void* receive_from(void *para)
 
 }
 
-int connect_to(device *dev)
+int connect_to(device dev)
 {
-    dev->fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    if (dev->fd == -1)
-    {
-        //printf("ERROR: Can not connect( fd < -1)\n");
-        return -1 ;
-    }
 
-    dev->addr.sin_family = AF_INET;
-    dev->addr.sin_port = htons(dev->port_num);
-    inet_pton(AF_INET, dev->my_ip, &dev->addr.sin_addr);
-
-    if (connect(dev->fd, (struct sockaddr*)&dev->addr, sizeof(dev->addr)) < 0)
+    if (connect(dev.fd, (struct sockaddr*)&dev.addr, sizeof(dev.addr)) < 0)
     {
         //printf("ERROR: Can not connect to new device\n");
         return -1 ;
@@ -160,7 +159,7 @@ static void *Accep_Thread(void *para)
     device_connect[total_device].port_num = ntohs(cli_addr.sin_port);
     device_connect[total_device].addrlen = len ;
     inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect[total_device].my_ip, 50);
-
+    printf("                            ******                                   ");
     printf("\nAccept a new connection from IP addreass: %s, setup at port: %d\n", device_connect[total_device].my_ip, device_connect[total_device].port_num);
     
     if (pthread_create(&Recei_Thread_id, NULL, &receive_from, &device_connect[total_device])){
@@ -176,6 +175,13 @@ static void *Accep_Thread(void *para)
 int main(int argc, char *argv[]){
 
      system("clear");
+
+    if (signal(SIGINT,sig_handler) == SIG_ERR)
+    {
+        printf("Can not handler SIGINT\n");
+     
+    }
+
     //create socket for this device
     this_device.fd = socket(AF_INET, SOCK_STREAM, 0);
  
@@ -263,13 +269,18 @@ int main(int argc, char *argv[]){
             char IP_d[20];
             char temp[10];
             sscanf(command, "%s %s %d",temp, IP_d, &port_n);
+
+            device_connect[total_device].fd = socket(AF_INET, SOCK_STREAM, 0);
             device_connect[total_device].id = total_device;
             device_connect[total_device].port_num = port_n;
             strcpy(device_connect[total_device].my_ip, IP_d);
+            device_connect[total_device].addr.sin_family = AF_INET;
+            device_connect[total_device].addr.sin_port = htons(device_connect[total_device].port_num);
+            inet_pton(AF_INET, device_connect[total_device].my_ip, &device_connect[total_device].addr.sin_addr);
 
-            if (connect_to(&device_connect[total_device]) )
+            if (connect_to(device_connect[total_device]) )
             {
-                printf("ERROR: Can not connect toi new device\n");
+                printf("ERROR: Can not connect to new device\n");
 
             }
 
@@ -277,8 +288,16 @@ int main(int argc, char *argv[]){
                 printf("Connnect OK\n");
                 total_device++;
                 printf("Total Device is : %d\n", total_device);
-                printf("ID of this device : %d\n", device_connect[total_device].id);
+                printf("ID of this device : %d\n", total_device-1);
             }
+            }
+
+            else if (!strcmp(command_option, "exit"))
+            {
+                printf("**************************************************************************\n");
+                printf("-----------------------ENDING PROGRAMMING---------------------------------\n");
+                printf("***************************************************************************");
+                return 1;
             }
 
     }
