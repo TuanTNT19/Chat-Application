@@ -1,3 +1,6 @@
+
+
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -24,13 +27,15 @@ typedef struct {
     int fd;
     int port_num;
     struct sockaddr_in addr;
-    socklen_t addrlen;
+    //socklen_t addrlen;
     char my_ip[50];
 } device;
 
 device this_device ={0};
-device device_connect[MAX_BACKLOG] ;
-int total_device = 0;
+device device_connect_to[MAX_BACKLOG] = {0};
+device device_connect_from[MAX_BACKLOG] = {0};
+int total_device_from = 0;
+int total_device_to = 0;
 
 void sig_handler()
 {
@@ -44,20 +49,29 @@ void sig_handler()
 static void* receive_from(void *para)
 {
     device *devicet = (device *)para;
-    char buff_r[50];
+    char buff_r[70];
 
     while(1)
     {
 
-    if (read(devicet->fd, buff_r, 50) < 0)
+    if (read(devicet->fd, buff_r, 70) < 0)
     {
         printf("ERROR: Can not read data\n");
         return ;
     }
 
+  
+    
+    if ((devicet->fd) >= 0){
     printf("** Message receive from: %s\n", devicet->my_ip);
     printf("** Sender Port:          %d\n",devicet->port_num);
+    printf("Sender FD = %d\n", devicet->fd);
     printf("-> Message:              %s\n", buff_r);
+    //printf("%s\n", buff_r);
+    }
+    else {
+        printf("Notification: %s\n", buff_r);
+    }
     }
 
 
@@ -84,12 +98,30 @@ void print_myPort()
 
 void list_peer()
 {  
+    printf("Device connection to*********************\n");
     printf("ID |        IP Address         | Port No.\n");
     
-    for (int i =0; i< total_device; i++)
+    for (int i =0; i< MAX_BACKLOG; i++)
     {
-        printf("%d |    %s          | %d\n", device_connect[i].id, device_connect[i].my_ip, device_connect[i].port_num);
+        if (device_connect_to[i].fd > 0)
+        {
+        printf("%d  |    %s          | %d\n", device_connect_to[i].id, device_connect_to[i].my_ip, device_connect_to[i].port_num);
+        }
     }
+    printf("*****************************************\n");
+
+    printf("Device connection from*******************\n");
+    printf("ID |        IP Address         | Port No.\n");
+    
+    for (int i =0; i< total_device_from; i++)
+    {
+        if (device_connect_from[i].fd > 0)
+        {
+        printf("%d  |    %s          | %d\n", device_connect_from[i].id, device_connect_from[i].my_ip, device_connect_from[i].port_num);
+        }
+    }
+    printf("*****************************************\n");
+
 }
 
 void print_myIP(char *ip_add)
@@ -128,12 +160,35 @@ void *process_chosen(char *str, char *result)
 
 int send_to(device dev, char *mes)
 {
-    if (write(dev.fd, mes, sizeof(mes)) < 0)
-{
-    printf("ERROR: Can not send message\n");
-    return 0;
-}
+    if (dev.fd < 0)
+    {
+        printf("ERROR: This device has just been terminated\n");
+        return 0;
+    }
+
+    if (write(dev.fd, mes, 70) < 0)
+    {
+        printf("ERROR: Can not send message\n");
+        return 0;
+    }
     return 1;
+}
+
+void terminate_id(int id)
+{
+    char str[70];
+    for (int i=0; i<total_device_to; i++)
+    {
+        if (id == device_connect_to[i].id)
+        {
+            sprintf(str, "The connection at port %d has just been terminated ! ! !\n",device_connect_to[i].port_num);
+            send_to(device_connect_to[i], str);
+
+            device_connect_to[i].fd = -1;
+           
+        }
+    }
+    total_device_to--;
 }
 
 static void *Accep_Thread(void *para)
@@ -152,22 +207,20 @@ static void *Accep_Thread(void *para)
             return ;
         }
 
-    device_connect[total_device].fd = client_fd;
-    device_connect[total_device].id = total_device;
-    device_connect[total_device].addr = cli_addr;
+    device_connect_from[total_device_from].fd = client_fd;
+    device_connect_from[total_device_from].id = total_device_from;
+    device_connect_from[total_device_from].addr = cli_addr;
 
-    device_connect[total_device].port_num = ntohs(cli_addr.sin_port);
-    device_connect[total_device].addrlen = len ;
-    inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect[total_device].my_ip, 50);
+    device_connect_from[total_device_from].port_num = ntohs(cli_addr.sin_port);
+    inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect_from[total_device_from].my_ip, 50);
     printf("                            ******                                   ");
-    printf("\nAccept a new connection from IP addreass: %s, setup at port: %d\n", device_connect[total_device].my_ip, device_connect[total_device].port_num);
+    printf("\nAccept a new connection from IP addreass: %s, setup at port: %d\n", device_connect_from[total_device_from].my_ip, device_connect_from[total_device_from].port_num);
     
-    if (pthread_create(&Recei_Thread_id, NULL, &receive_from, &device_connect[total_device])){
+    if (pthread_create(&Recei_Thread_id, NULL, &receive_from, &device_connect_from[total_device_from])){
         printf("ERROR: Can not create to receive message\n");
     }
-    //receive_from(device_connect[total_device]);
 
-    total_device++;
+    total_device_from++;
     }
 }
 
@@ -234,16 +287,12 @@ int main(int argc, char *argv[]){
             int id;
 
             sscanf(command, "%s %d %[^\n]", temp, &id, mes);
-            
-            printf("Command: %s\n", temp);
-            printf("ID: %d\n", id);
-            printf("mes: %s\n", mes);
 
-            for (int i=0; i <total_device;i++)
+            for (int i=0; i <total_device_to;i++)
             {
-                if (id == device_connect[i].id)
+                if (id == device_connect_to[i].id)
                 {
-                    send_to(device_connect[i], mes);
+                    send_to(device_connect_to[i], mes);
                 }
             }
         }
@@ -261,6 +310,7 @@ int main(int argc, char *argv[]){
         else if (!strcmp(command_option,"list"))
         {
             printf("Check command list ok\n");
+            list_peer();
         }
 
         else if (!strcmp(command_option, "connect"))
@@ -270,15 +320,15 @@ int main(int argc, char *argv[]){
             char temp[10];
             sscanf(command, "%s %s %d",temp, IP_d, &port_n);
 
-            device_connect[total_device].fd = socket(AF_INET, SOCK_STREAM, 0);
-            device_connect[total_device].id = total_device;
-            device_connect[total_device].port_num = port_n;
-            strcpy(device_connect[total_device].my_ip, IP_d);
-            device_connect[total_device].addr.sin_family = AF_INET;
-            device_connect[total_device].addr.sin_port = htons(device_connect[total_device].port_num);
-            inet_pton(AF_INET, device_connect[total_device].my_ip, &device_connect[total_device].addr.sin_addr);
+            device_connect_to[total_device_to].fd = socket(AF_INET, SOCK_STREAM, 0);
+            device_connect_to[total_device_to].id = total_device_to;
+            device_connect_to[total_device_to].port_num = port_n;
+            strcpy(device_connect_to[total_device_to].my_ip, IP_d);
+            device_connect_to[total_device_to].addr.sin_family = AF_INET;
+            device_connect_to[total_device_to].addr.sin_port = htons(device_connect_to[total_device_to].port_num);
+            inet_pton(AF_INET, device_connect_to[total_device_to].my_ip, &device_connect_to[total_device_to].addr.sin_addr);
 
-            if (connect_to(device_connect[total_device]) )
+            if (connect_to(device_connect_to[total_device_to]) )
             {
                 printf("ERROR: Can not connect to new device\n");
 
@@ -286,9 +336,9 @@ int main(int argc, char *argv[]){
 
             else{
                 printf("Connnect OK\n");
-                total_device++;
-                printf("Total Device is : %d\n", total_device);
-                printf("ID of this device : %d\n", total_device-1);
+                total_device_to++;
+               // printf("Total Device is : %d\n", total_device);
+                //printf("ID of this device : %d\n", total_device-1);
             }
             }
 
@@ -298,6 +348,16 @@ int main(int argc, char *argv[]){
                 printf("-----------------------ENDING PROGRAMMING---------------------------------\n");
                 printf("***************************************************************************");
                 return 1;
+            }
+
+            else if (!strcmp(command_option,"terminate"))
+            {
+                int ID_temp;
+                char temp[20];
+
+                sscanf(command,"%s %d",temp,&ID_temp);
+                terminate_id(ID_temp);
+                //send_to(ID_temp,"Connection at port %d has just been terminated\n")
             }
 
     }
