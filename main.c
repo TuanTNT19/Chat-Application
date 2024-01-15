@@ -13,8 +13,7 @@
 #include <signal.h>
 
 //#define clear() printf("\033[H\033[J") 
-#define MAX_BACKLOG 10
-
+#define MAX_BACKLOG 15
 
 pthread_t Accep_Thread_id, Recei_Thread_id;
 char IP[100];
@@ -27,7 +26,6 @@ typedef struct {
     int fd;
     int port_num;
     struct sockaddr_in addr;
-    //socklen_t addrlen;
     char my_ip[50];
 } device;
 
@@ -65,9 +63,7 @@ static void* receive_from(void *para)
     if ((devicet->fd) >= 0){
     printf("** Message receive from: %s\n", devicet->my_ip);
     printf("** Sender Port:          %d\n",devicet->port_num);
-    printf("Sender FD = %d\n", devicet->fd);
     printf("-> Message:              %s\n", buff_r);
-    //printf("%s\n", buff_r);
     }
     else {
         printf("Notification: %s\n", buff_r);
@@ -188,7 +184,7 @@ void terminate_id(int id)
            
         }
     }
-    total_device_to--;
+    //total_device_to--;
 }
 
 static void *Accep_Thread(void *para)
@@ -281,14 +277,14 @@ int main(int argc, char *argv[]){
 
         if (!strcmp(command_option,"send"))
         {
-            printf("ok send\n");
+            //printf("ok send\n");
             char temp[20];
             char mes[50];
             int id;
 
             sscanf(command, "%s %d %[^\n]", temp, &id, mes);
 
-            for (int i=0; i <total_device_to;i++)
+            for (int i=0; i < total_device_to; i++)
             {
                 if (id == device_connect_to[i].id)
                 {
@@ -337,13 +333,15 @@ int main(int argc, char *argv[]){
             else{
                 printf("Connnect OK\n");
                 total_device_to++;
-               // printf("Total Device is : %d\n", total_device);
-                //printf("ID of this device : %d\n", total_device-1);
             }
             }
 
             else if (!strcmp(command_option, "exit"))
             {
+                for (int i =0; i< total_device_to; i++)
+                {
+                    terminate_id(i);
+                }
                 printf("**************************************************************************\n");
                 printf("-----------------------ENDING PROGRAMMING---------------------------------\n");
                 printf("***************************************************************************");
@@ -357,9 +355,27 @@ int main(int argc, char *argv[]){
 
                 sscanf(command,"%s %d",temp,&ID_temp);
                 terminate_id(ID_temp);
-                //send_to(ID_temp,"Connection at port %d has just been terminated\n")
             }
 
+            else if (!strcmp(command_option, "helpp"))
+            {
+                printf("*************Command menu****************\n");
+                printf("myip                           : Display IP of this device\n");
+                printf("myport                         : Display port of this device\n ");
+                printf("connect <destination> <port_no>: connect to device with IP at destination and port at port no\n");
+                printf("list                           : Display all device connect\n");
+                printf("terminate <connect id>         : Disconnect with device at id connect id\n");
+                printf("send <connect id> <message>    : send message to device with id connect id \n");
+                printf("exit                           : close application\n");
+                
+
+            }
+
+            else {
+                printf("INVALID COMMAND\n");
+            }
+
+           
     }
 
     return 0;
