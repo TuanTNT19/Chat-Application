@@ -1,7 +1,7 @@
-Create by TuanTNT19
+# Create by TuanTNT19
 
 
-# Project Overview
+## Project Overview
 This program utilizes concepts such as threads, IPC/socket to establish connections and facilitate communication between multiple devices. Users interact with the system using various commands, each with different features.
 
 ## Directories Structure
