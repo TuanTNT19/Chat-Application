@@ -5,19 +5,19 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-//#include <netdb.h>
-//#include <errno.h>
 #include <signal.h>
 
 #define clear() printf("\033[H\033[J") 
-#define MAX_BACKLOG 15
+#define MAX_BACKLOG 15 //max device connection is 15
 
 pthread_t Accep_Thread_id, Recei_Thread_id;
+
 char IP[100];
 char command[70];
 char command_option[10];
 char temp_str[70];
 
+/*Struct for device*/
 typedef struct {
     int id;
     int fd;
@@ -26,9 +26,16 @@ typedef struct {
     char my_ip[50];
 } device;
 
+/*Device present for this */
 device this_device ={0};
+
+/*Devices which take connection from this device*/
 device device_connect_to[MAX_BACKLOG] = {0};
+
+/*Devices which connect to this device*/
 device device_connect_from[MAX_BACKLOG] = {0};
+
+/*Number of device*/
 int total_device_from = 0;
 int total_device_to = 0;
 
@@ -41,6 +48,7 @@ void sig_handler()
     exit(0);
 }
 
+/*Function to receive message from another device*/
 static void* receive_from(void *para)
 {
     device *devicet = (device *)para;
@@ -55,8 +63,7 @@ static void* receive_from(void *para)
         return NULL;
     }
 
-  
-    
+/*Display data if device sent has fd > 0*/
     if ((devicet->fd) >= 0){
     printf("** Message receive from: %s\n", devicet->my_ip);
     printf("** Sender Port:          %d\n",devicet->port_num);
@@ -66,29 +73,26 @@ static void* receive_from(void *para)
         printf("Notification: %s\n", buff_r);
     }
     }
-
-
 }
 
+/*Function uses for connecting to new device*/
 int connect_to(device dev)
 {
 
-
     if (connect(dev.fd, (struct sockaddr*)&dev.addr, sizeof(dev.addr)) < 0)
     {
-        //printf("ERROR: Can not connect to new device\n");
         return -1 ;
     }   
-
-    return 0;
+   return 0;
 }
 
-
+/*print this device 's port*/
 void print_myPort()
 {
     printf("My port is: %d\n", this_device.port_num);
 }
 
+/*Function to display all connection in both sides*/
 void list_peer()
 {  
     printf("Device connection to*********************\n");
@@ -117,6 +121,7 @@ void list_peer()
 
 }
 
+/*print this device 's IP*/
 void print_myIP(char *ip_add)
 {
     
@@ -137,6 +142,7 @@ void print_myIP(char *ip_add)
     printf("My IP is : %s", ip_add);
 }
 
+/*Function to process input to get command*/
 void *process_chosen(char *str, char *result)
 {
     //char result[10];
@@ -151,6 +157,7 @@ void *process_chosen(char *str, char *result)
      }
 }
 
+/*Function to send Message to other device*/
 int send_to(device dev, char *mes)
 {
     if (dev.fd < 0)
@@ -167,6 +174,7 @@ int send_to(device dev, char *mes)
     return 1;
 }
 
+/*Function to disconnect to a device with ID*/
 void terminate_id(int id)
 {
     char str[70];
@@ -184,6 +192,7 @@ void terminate_id(int id)
     //total_device_to--;
 }
 
+//print assistance for user
 void printf_help()
 {
     printf("*************Command menu****************\n");
@@ -198,6 +207,7 @@ void printf_help()
 
 }
 
+/*print list of all command*/
 void command_list()
 {
     printf("*************Command list****************\n");
@@ -212,6 +222,8 @@ void command_list()
     printf("*******************************************\n");
 
 }
+
+/*Function to take accept new device*/
 static void *Accep_Thread(void *para)
 {
     int client_fd;
@@ -228,15 +240,19 @@ static void *Accep_Thread(void *para)
             return NULL;
         }
 
+/*store new device 's infor ( fefined by cli_addr) to device_connect_from array*/
     device_connect_from[total_device_from].fd = client_fd;
     device_connect_from[total_device_from].id = total_device_from;
     device_connect_from[total_device_from].addr = cli_addr;
 
     device_connect_from[total_device_from].port_num = ntohs(cli_addr.sin_port);
     inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect_from[total_device_from].my_ip, 50);
+
+/*Notification to user that a neq device has just been accpet*/
     printf("                            ******                                   ");
     printf("\nAccept a new connection from IP addreass: %s, setup at port: %d\n", device_connect_from[total_device_from].my_ip, device_connect_from[total_device_from].port_num);
-    
+
+/*Create a thread to take message from new device*/  
     if (pthread_create(&Recei_Thread_id, NULL, &receive_from, &device_connect_from[total_device_from])){
         printf("ERROR: Can not create to receive message\n");
     }
@@ -300,6 +316,7 @@ int main(int argc, char *argv[]){
 
         strcpy(temp_str, command);
 
+/*process input and take command to command_option*/
         process_chosen(temp_str, command_option);
 
         if (!strcmp(command_option,"send"))
@@ -309,8 +326,10 @@ int main(int argc, char *argv[]){
             char mes[50];
             int id;
 
+/*process input and take infor to ID and mes*/
             sscanf(command, "%s %d %[^\n]", temp, &id, mes);
 
+/*send mes located by ID*/
             for (int i=0; i < total_device_to; i++)
             {
                 if (id == device_connect_to[i].id)
@@ -341,8 +360,11 @@ int main(int argc, char *argv[]){
             int port_n;
             char IP_d[20];
             char temp[10];
+
+/*get impotant daa to IP and port*/
             sscanf(command, "%s %s %d",temp, IP_d, &port_n);
 
+/*define a new device by IP and port*/
             device_connect_to[total_device_to].fd = socket(AF_INET, SOCK_STREAM, 0);
             device_connect_to[total_device_to].id = total_device_to;
             device_connect_to[total_device_to].port_num = port_n;
@@ -351,6 +373,7 @@ int main(int argc, char *argv[]){
             device_connect_to[total_device_to].addr.sin_port = htons(device_connect_to[total_device_to].port_num);
             inet_pton(AF_INET, device_connect_to[total_device_to].my_ip, &device_connect_to[total_device_to].addr.sin_addr);
 
+/*connection and check it*/
             if (connect_to(device_connect_to[total_device_to]) )
             {
                 printf("ERROR: Can not connect to new device\n");
@@ -375,11 +398,13 @@ int main(int argc, char *argv[]){
                 break ;
             }
 
+/*terminate a device located by ID*/
             else if (!strcmp(command_option,"terminate"))
             {
                 int ID_temp;
                 char temp[20];
 
+/*take ID from input and push it to ID_temp*/
                 sscanf(command,"%s %d",temp,&ID_temp);
                 terminate_id(ID_temp);
             }
