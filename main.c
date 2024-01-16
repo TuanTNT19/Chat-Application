@@ -13,9 +13,9 @@
 pthread_t Accep_Thread_id, Recei_Thread_id;
 
 char IP[100];
-char command[70];
+char command[120];
 char command_option[10];
-char temp_str[70];
+char temp_str[120];
 
 /*Struct for device*/
 typedef struct {
@@ -52,12 +52,12 @@ void sig_handler()
 static void* receive_from(void *para)
 {
     device *devicet = (device *)para;
-    char buff_r[70];
+    char buff_r[100];
 
     while(1)
     {
 
-    if (read(devicet->fd, buff_r, 70) < 0)
+    if (read(devicet->fd, buff_r, 100) < 0)
     {
         printf("ERROR: Can not read data\n");
         return NULL;
@@ -166,7 +166,7 @@ int send_to(device dev, char *mes)
         return 0;
     }
 
-    if (write(dev.fd, mes, 70) < 0)
+    if (write(dev.fd, mes, 100) < 0)
     {
         printf("ERROR: Can not send message\n");
         return 0;
@@ -311,7 +311,7 @@ int main(int argc, char *argv[]){
     while(1)
     {
         printf("Enter your command:  ");
-        fgets(command, 70, stdin);
+        fgets(command, 120, stdin);
         command[strcspn(command, "\n")] = '\0';
 
         strcpy(temp_str, command);
@@ -323,7 +323,7 @@ int main(int argc, char *argv[]){
         {
             //printf("ok send\n");
             char temp[20];
-            char mes[50];
+            char mes[100];
             int id;
 
 /*process input and take infor to ID and mes*/
