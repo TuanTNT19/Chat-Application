@@ -1,6 +1,3 @@
-
-
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,11 +5,11 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <netdb.h>
-#include <errno.h>
+//#include <netdb.h>
+//#include <errno.h>
 #include <signal.h>
 
-//#define clear() printf("\033[H\033[J") 
+#define clear() printf("\033[H\033[J") 
 #define MAX_BACKLOG 15
 
 pthread_t Accep_Thread_id, Recei_Thread_id;
@@ -55,7 +52,7 @@ static void* receive_from(void *para)
     if (read(devicet->fd, buff_r, 70) < 0)
     {
         printf("ERROR: Can not read data\n");
-        return ;
+        return NULL;
     }
 
   
@@ -187,6 +184,34 @@ void terminate_id(int id)
     //total_device_to--;
 }
 
+void printf_help()
+{
+    printf("*************Command menu****************\n");
+    printf("myip                           : Display IP of this device\n");
+    printf("myport                         : Display port of this device\n");
+    printf("connect <destination> <port_no>: connect to device with IP at destination and port at port no\n");
+    printf("list                           : Display all device connect\n");
+    printf("terminate <connect id>         : Disconnect with device at id connect id\n");
+    printf("send <connect id> <message>    : send message to device with id connect id \n");
+    printf("exit                           : close application\n");
+    printf("*******************************************\n");
+
+}
+
+void command_list()
+{
+    printf("*************Command list****************\n");
+    printf("myip                           : Display IP of this device\n");
+    printf("myport                         : Display port of this device\n");
+    printf("connect <destination> <port_no>: connect to device with IP at destination and port at port no\n");
+    printf("list                           : Display all device connect\n");
+    printf("terminate <connect id>         : Disconnect with device at id connect id\n");
+    printf("send <connect id> <message>    : send message to device with id connect id \n");
+    printf("exit                           : close application\n");
+    printf("help                           : Display all command\n");
+    printf("*******************************************\n");
+
+}
 static void *Accep_Thread(void *para)
 {
     int client_fd;
@@ -200,7 +225,7 @@ static void *Accep_Thread(void *para)
         if (client_fd == -1)
         {
             printf("ERROR: Can not accept new device\n");
-            return ;
+            return NULL;
         }
 
     device_connect_from[total_device_from].fd = client_fd;
@@ -223,7 +248,7 @@ static void *Accep_Thread(void *para)
 
 int main(int argc, char *argv[]){
 
-     system("clear");
+     clear();
 
     if (signal(SIGINT,sig_handler) == SIG_ERR)
     {
@@ -259,6 +284,8 @@ int main(int argc, char *argv[]){
     }
 
     printf("Listening on port : %d\n", this_device.port_num);
+
+    command_list();
 
     if (pthread_create(&Accep_Thread_id, NULL, &Accep_Thread, NULL)){
         printf("ERROR: Can not create thread for accept new device\n");
@@ -345,7 +372,7 @@ int main(int argc, char *argv[]){
                 printf("**************************************************************************\n");
                 printf("-----------------------ENDING PROGRAMMING---------------------------------\n");
                 printf("***************************************************************************");
-                return 1;
+                break ;
             }
 
             else if (!strcmp(command_option,"terminate"))
@@ -357,11 +384,11 @@ int main(int argc, char *argv[]){
                 terminate_id(ID_temp);
             }
 
-            else if (!strcmp(command_option, "helpp"))
+            else if (!strcmp(command_option, "help"))
             {
                 printf("*************Command menu****************\n");
                 printf("myip                           : Display IP of this device\n");
-                printf("myport                         : Display port of this device\n ");
+                printf("myport                         : Display port of this device\n");
                 printf("connect <destination> <port_no>: connect to device with IP at destination and port at port no\n");
                 printf("list                           : Display all device connect\n");
                 printf("terminate <connect id>         : Disconnect with device at id connect id\n");
@@ -377,6 +404,8 @@ int main(int argc, char *argv[]){
 
            
     }
+    
+    while(1);
 
     return 0;
 }
