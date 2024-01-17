@@ -175,21 +175,13 @@ int send_to(device dev, char *mes)
 }
 
 /*Function to disconnect to a device with ID*/
-void terminate_id(int id)
+void terminate_id(device *dev)
 {
     char str[70];
-    for (int i=0; i<total_device_to; i++)
-    {
-        if (id == device_connect_to[i].id)
-        {
-            sprintf(str, "The connection at port %d has just been terminated ! ! !\n",device_connect_to[i].port_num);
-            send_to(device_connect_to[i], str);
+    sprintf(str, "The connection at port %d has just been terminated\n",dev->port_num);
+    send_to(*dev, str);
 
-            device_connect_to[i].fd = -1;
-           
-        }
-    }
-    //total_device_to--;
+    dev->fd = -1;
 }
 
 //print assistance for user
@@ -390,7 +382,7 @@ int main(int argc, char *argv[]){
             {
                 for (int i =0; i< total_device_to; i++)
                 {
-                    terminate_id(i);
+                    terminate_id(&device_connect_to[i]);
                 }
                 printf("**************************************************************************\n");
                 printf("-----------------------ENDING PROGRAMMING---------------------------------\n");
@@ -406,7 +398,15 @@ int main(int argc, char *argv[]){
 
 /*take ID from input and push it to ID_temp*/
                 sscanf(command,"%s %d",temp,&ID_temp);
-                terminate_id(ID_temp);
+
+                for (int i =0; i<total_device_to; i++)
+                {
+                    if (ID_temp == device_connect_to[i].id)
+                    {
+                       terminate_id(&device_connect_to[i]);
+                    }
+                }
+                
             }
 
             else if (!strcmp(command_option, "help"))
