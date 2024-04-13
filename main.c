@@ -15,7 +15,6 @@ pthread_t Accep_Thread_id, Recei_Thread_id;
 char IP[100];
 char command[120];
 char command_option[10];
-char temp_str[120];
 
 /*Struct for device*/
 typedef struct {
@@ -107,18 +106,6 @@ void list_peer()
     }
     printf("*****************************************\n");
 
-    printf("Device connection from*******************\n");
-    printf("ID |        IP Address         | Port No.\n");
-    
-    for (int i =0; i< total_device_from; i++)
-    {
-        if (device_connect_from[i].fd > 0)
-        {
-        printf("%d  |    %s          | %d\n", device_connect_from[i].id, device_connect_from[i].my_ip, device_connect_from[i].port_num);
-        }
-    }
-    printf("*****************************************\n");
-
 }
 
 /*print this device 's IP*/
@@ -142,20 +129,6 @@ void print_myIP(char *ip_add)
     printf("My IP is : %s", ip_add);
 }
 
-/*Function to process input to get command*/
-void *process_chosen(char *str, char *result)
-{
-    //char result[10];
-    int i = 0;
-     char *token = strtok(str," ");
-
-     while(token != NULL)
-     {
-        strcpy(result, token);
-        token = strtok(NULL, " ");
-        break;
-     }
-}
 
 /*Function to send Message to other device*/
 int send_to(device dev, char *mes)
@@ -180,7 +153,6 @@ void terminate_id(device *dev)
     char str[70];
     sprintf(str, "The connection at port %d has just been terminated\n",dev->port_num);
     send_to(*dev, str);
-
     dev->fd = -1;
 }
 
@@ -238,7 +210,7 @@ static void *Accep_Thread(void *para)
     device_connect_from[total_device_from].addr = cli_addr;
 
     device_connect_from[total_device_from].port_num = ntohs(cli_addr.sin_port);
-    inet_ntop(AF_INET, &cli_addr.sin_addr, device_connect_from[total_device_from].my_ip, 50);
+    inet_ntop(AF_INET, &cli_addr.sin_addr.s_addr, device_connect_from[total_device_from].my_ip, 50);
 
 /*Notification to user that a neq device has just been accpet*/
     printf("                            ******                                   ");
@@ -256,7 +228,7 @@ static void *Accep_Thread(void *para)
 
 int main(int argc, char *argv[]){
 
-     clear();
+    clear();
 
     if (signal(SIGINT,sig_handler) == SIG_ERR)
     {
@@ -304,12 +276,9 @@ int main(int argc, char *argv[]){
     {
         printf("Enter your command:  ");
         fgets(command, 120, stdin);
-        command[strcspn(command, "\n")] = '\0';
-
-        strcpy(temp_str, command);
 
 /*process input and take command to command_option*/
-        process_chosen(temp_str, command_option);
+        sscanf(command, "%s", command_option);
 
         if (!strcmp(command_option,"send"))
         {
@@ -363,7 +332,7 @@ int main(int argc, char *argv[]){
             strcpy(device_connect_to[total_device_to].my_ip, IP_d);
             device_connect_to[total_device_to].addr.sin_family = AF_INET;
             device_connect_to[total_device_to].addr.sin_port = htons(device_connect_to[total_device_to].port_num);
-            inet_pton(AF_INET, device_connect_to[total_device_to].my_ip, &device_connect_to[total_device_to].addr.sin_addr);
+            inet_pton(AF_INET, device_connect_to[total_device_to].my_ip, &device_connect_to[total_device_to].addr.sin_addr.s_addr);
 
 /*connection and check it*/
             if (connect_to(device_connect_to[total_device_to]) )
