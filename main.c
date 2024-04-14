@@ -187,6 +187,10 @@ void command_list()
 
 }
 
+void print_info(void (*ptr)()){
+    (*ptr)();
+}
+
 /*Function to take accept new device*/
 static void *Accep_Thread(void *para)
 {
@@ -265,7 +269,7 @@ int main(int argc, char *argv[]){
 
     printf("Listening on port : %d\n", this_device.port_num);
 
-    command_list();
+    print_info(command_list);
 
     if (pthread_create(&Accep_Thread_id, NULL, &Accep_Thread, NULL)){
         printf("ERROR: Can not create thread for accept new device\n");
@@ -306,14 +310,14 @@ int main(int argc, char *argv[]){
         }
 
         else if (!strcmp(command_option, "myport")){
-            print_myPort();
+            print_info(print_myPort);
 
         }
 
         else if (!strcmp(command_option,"list"))
         {
             printf("Check command list ok\n");
-            list_peer();
+            print_info(list_peer);
         }
 
         else if (!strcmp(command_option, "connect"))
@@ -380,15 +384,7 @@ int main(int argc, char *argv[]){
 
             else if (!strcmp(command_option, "help"))
             {
-                printf("*************Command menu****************\n");
-                printf("myip                           : Display IP of this device\n");
-                printf("myport                         : Display port of this device\n");
-                printf("connect <destination> <port_no>: connect to device with IP at destination and port at port no\n");
-                printf("list                           : Display all device connect\n");
-                printf("terminate <connect id>         : Disconnect with device at id connect id\n");
-                printf("send <connect id> <message>    : send message to device with id connect id \n");
-                printf("exit                           : close application\n");
-                
+                print_info(printf_help);
 
             }
 
