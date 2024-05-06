@@ -187,10 +187,6 @@ void command_list()
 
 }
 
-void print_info(void (*ptr)()){
-    (*ptr)();
-}
-
 /*Function to take accept new device*/
 static void *Accep_Thread(void *para)
 {
@@ -233,7 +229,7 @@ static void *Accep_Thread(void *para)
 int main(int argc, char *argv[]){
 
     clear();
-
+    void (*print_info)();
     if (signal(SIGINT,sig_handler) == SIG_ERR)
     {
         printf("Can not handler SIGINT\n");
@@ -269,7 +265,8 @@ int main(int argc, char *argv[]){
 
     printf("Listening on port : %d\n", this_device.port_num);
 
-    print_info(command_list);
+    print_info = command_list;
+    (*print_info)();
 
     if (pthread_create(&Accep_Thread_id, NULL, &Accep_Thread, NULL)){
         printf("ERROR: Can not create thread for accept new device\n");
@@ -310,14 +307,16 @@ int main(int argc, char *argv[]){
         }
 
         else if (!strcmp(command_option, "myport")){
-            print_info(print_myPort);
+            print_info = print_myPort;
+            (*print_info)();
 
         }
 
         else if (!strcmp(command_option,"list"))
         {
             printf("Check command list ok\n");
-            print_info(list_peer);
+            print_info = list_peer;
+            (*print_info)();
         }
 
         else if (!strcmp(command_option, "connect"))
@@ -384,7 +383,8 @@ int main(int argc, char *argv[]){
 
             else if (!strcmp(command_option, "help"))
             {
-                print_info(printf_help);
+                print_info = printf_help;
+                (*print_info)();
 
             }
 
@@ -395,7 +395,7 @@ int main(int argc, char *argv[]){
            
     }
     
-    while(1);
+  //  while(1);
 
     return 0;
 }
