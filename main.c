@@ -10,6 +10,8 @@
 #define clear() printf("\033[H\033[J") 
 #define MAX_BACKLOG 15 //max device connection is 15
 
+typedef void (*print)();
+
 pthread_t Accep_Thread_id, Recei_Thread_id;
 
 char IP[100];
@@ -92,7 +94,7 @@ void print_myPort()
 }
 
 /*Function to display all connection in both sides*/
-void list_peer()
+void print_list_peer()
 {  
     printf("Device connection to*********************\n");
     printf("ID |        IP Address         | Port No.\n");
@@ -157,7 +159,7 @@ void terminate_id(device *dev)
 }
 
 //print assistance for user
-void printf_help()
+void print_help()
 {
     printf("*************Command menu****************\n");
     printf("myip                           : Display IP of this device\n");
@@ -172,7 +174,7 @@ void printf_help()
 }
 
 /*print list of all command*/
-void command_list()
+void print_list_command()
 {
     printf("*************Command list****************\n");
     printf("myip                           : Display IP of this device\n");
@@ -185,6 +187,10 @@ void command_list()
     printf("help                           : Display all command\n");
     printf("*******************************************\n");
 
+}
+
+void print_info(print pr){
+    (*pr)();
 }
 
 /*Function to take accept new device*/
@@ -229,7 +235,6 @@ static void *Accep_Thread(void *para)
 int main(int argc, char *argv[]){
 
     clear();
-    void (*print_info)();
     if (signal(SIGINT,sig_handler) == SIG_ERR)
     {
         printf("Can not handler SIGINT\n");
@@ -243,7 +248,7 @@ int main(int argc, char *argv[]){
     {
         printf("ERROR: Can not create socket for this device\n");
         return 0;
-    }
+    }               
     
     this_device.port_num = atoi(argv[1]);
 
@@ -265,8 +270,7 @@ int main(int argc, char *argv[]){
 
     printf("Listening on port : %d\n", this_device.port_num);
 
-    print_info = command_list;
-    (*print_info)();
+    print_info(print_list_command);
 
     if (pthread_create(&Accep_Thread_id, NULL, &Accep_Thread, NULL)){
         printf("ERROR: Can not create thread for accept new device\n");
@@ -307,16 +311,14 @@ int main(int argc, char *argv[]){
         }
 
         else if (!strcmp(command_option, "myport")){
-            print_info = print_myPort;
-            (*print_info)();
+            print_info(print_myPort);
 
         }
 
         else if (!strcmp(command_option,"list"))
         {
-            printf("Check command list ok\n");
-            print_info = list_peer;
-            (*print_info)();
+            //printf("Check command list ok\n");
+            print_info(print_list_peer);
         }
 
         else if (!strcmp(command_option, "connect"))
@@ -350,20 +352,8 @@ int main(int argc, char *argv[]){
             }
             }
 
-            else if (!strcmp(command_option, "exit"))
-            {
-                for (int i =0; i< total_device_to; i++)
-                {
-                    terminate_id(&device_connect_to[i]);
-                }
-                printf("**************************************************************************\n");
-                printf("-----------------------ENDING PROGRAMMING---------------------------------\n");
-                printf("***************************************************************************");
-                break ;
-            }
-
 /*terminate a device located by ID*/
-            else if (!strcmp(command_option,"terminate"))
+        else if (!strcmp(command_option,"terminate"))
             {
                 int ID_temp;
                 char temp[20];
@@ -381,21 +371,30 @@ int main(int argc, char *argv[]){
                 
             }
 
-            else if (!strcmp(command_option, "help"))
+        else if (!strcmp(command_option, "exit"))
             {
-                print_info = printf_help;
-                (*print_info)();
+                for (int i =0; i< total_device_to; i++)
+                {
+                    terminate_id(&device_connect_to[i]);
+                }
+                printf("**************************************************************************\n");
+                printf("-----------------------ENDING PROGRAMMING---------------------------------\n");
+                printf("***************************************************************************");
+                break ;
+            }
+
+        else if (!strcmp(command_option, "help"))
+            {
+                print_info(print_help);
 
             }
 
-            else {
+        else {
                 printf("INVALID COMMAND\n");
             }
 
            
     }
     
-  //  while(1);
-
     return 0;
 }
